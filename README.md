@@ -9,6 +9,9 @@ Small GoLang program to use MaxMind's GeoIP2 database for [Postfix policy delega
 policy-geoip unix -	n	n	-	-	spawn
   user=nobody argv=/path/to/bin/policyd-geoip --configuration /path/to/policyd-geoip.yaml
 ```
+
+`--configuration` flag is optional; program defaults to use `/usr/local/etc/policyd-geoip.yaml`.
+
 ### Then you can use the policy like so in `main.cf`:
 ```
 smtpd_..._restrictions =
@@ -33,6 +36,7 @@ blacklist:
 #  Etc. Etc.
 # Full path to the GeoIP2 database to use
 geoip2_database: /usr/share/GeoIP/GeoLite2-Country.mmdb
-# Time interval for refreshing configuration
+# Refresh the configuration if the previous policy request
+# was older than this interval
 refresh_interval: 10m
 ```
