@@ -20,15 +20,13 @@ const Dunno = "dunno"
 const Blacklisted = "reject Not interested"
 const Reject = "reject"
 const Defer = "defer_if_permit"
-/* Sorry folks, nothing personal */
-const DefaultBlacklist = "RU IN IR BR RO CN TW KR NG TR TH"
-const DefaultGeoIP2Dtabase = "/usr/share/GeoIP/GeoLite2-Country.mmdb"
+const DefaultGeoIP2Database = "/usr/share/GeoIP/GeoLite2-Country.mmdb"
 const DefaultConfigurationFile = "/usr/local/etc/policyd-geoip.yaml"
 const DefaultRefreshInterval = "30m"
 
 var debug = false
 var blacklistedCountries []string
-var geoIP2Database = DefaultGeoIP2Dtabase
+var geoIP2Database = DefaultGeoIP2Database
 var refreshInterval,_ = time.ParseDuration(DefaultRefreshInterval)
 
 
@@ -168,10 +166,9 @@ func loadConfiguration(configuration string) {
 		}
 		if len(blacklist) == 0 {
 			sysLog(syslog.LOG_WARNING, fmt.Sprintf("no valid blacklist found in configuration file %s", filename))
-			blacklist = strings.Split(DefaultBlacklist, " ")
-			sysLog(syslog.LOG_NOTICE, fmt.Sprintf("using default blacklist %v", blacklistedCountries))
+		} else {
+			blacklistedCountries = blacklist
 		}
-		blacklistedCountries = blacklist
 		debug = config.Debug
 		databaseFile, err := filepath.Abs(config.GeoIP2Database)
 		if err != nil {
