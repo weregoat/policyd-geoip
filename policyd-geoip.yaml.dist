@@ -9,4 +9,6 @@ blacklist:
   - SE # Sweden
 # Full path to the GeoIP2 database to use
 geoip2_database: /usr/share/GeoIP/GeoLite2-Country.mmdb
+# Time interval for refreshing configuration
+refresh_interval: 10m
 
