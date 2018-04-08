@@ -1,5 +1,23 @@
 # policyd-geoip
-Small GoLang program to use MaxMind's GeoIP2 database for Postfix's policy.
+Small GoLang program to use MaxMind's GeoIP2 database for [Postfix policy delegation](http://www.postfix.org/SMTPD_POLICY_README.html)
+
+## How to use
+
+### Add a service to Postfix `master.cf`:
+```
+# Geoip
+policy-geoip unix -	n	n	-	-	spawn
+  user=nobody argv=/path/to/bin/policyd-geoip --configuration /path/to/policyd-geoip.yaml
+```
+### Then you can use the policy like so in `main.cf`:
+```
+smtpd_..._restrictions =
+  ...
+  check_policy_service unix:private/policy-geoip
+  ...
+
+policy-geoip_time_limit = 3600
+```
 
 ## YAML configuration example
 ```
