@@ -94,6 +94,7 @@ func main() {
 			writer.Flush()
 			clientName = ""
 			ip = ""
+			response = Defer
 		}
 	}
 	if err := scanner.Err(); err != nil {
