@@ -92,6 +92,8 @@ func main() {
 			processDuration := time.Since(begin)
 			sendToSyslog(syslog.LOG_INFO, fmt.Sprintf("processed in %s", processDuration.String()))
 			writer.Flush()
+			clientName = ""
+			ip = ""
 		}
 	}
 	if err := scanner.Err(); err != nil {
