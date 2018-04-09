@@ -26,15 +26,17 @@ const DefaultRefreshInterval = "30m"
 
 var debug = false
 var blacklistedCountries []string
+var whitelistedClients []string
 var geoIP2Database = DefaultGeoIP2Database
 var refreshInterval,_ = time.ParseDuration(DefaultRefreshInterval)
 
 
 type Configuration struct {
 	Debug bool `yaml:"debug,omitempty"`
-	BlackList []string `yaml:"blacklist"`
+	Blacklist []string `yaml:"blacklist"`
 	GeoIP2Database string `yaml:"geoip2_database"`
 	RefreshInterval string `yaml:"refresh_interval"`
+	Whitelist []string `yaml:"whitelist"`
 }
 
 
@@ -47,24 +49,33 @@ func main() {
 
 	response := Dunno
 	scanner := bufio.NewScanner(os.Stdin)
+	ip := ""
+	clientName := ""
 	for scanner.Scan() {
 		begin := time.Now()
 		line := scanner.Text()
 		sysLog(syslog.LOG_DEBUG, fmt.Sprintf("read line '%s' from stdin", line))
 		if strings.Contains(line, "=") {
 			values := strings.Split(scanner.Text(), "=")
-			if values[0] == "client_address" {
+			key := values[0]
+			value := values[1]
+			switch key {
+			case "client_address":
 				elapsed := time.Since(start)
 				if elapsed.Minutes() >= refreshInterval.Minutes() {
 					sysLog(syslog.LOG_INFO, "refreshing configuration")
 					loadConfiguration(*configuration)
 					start = time.Now()
 				}
-				ip := values[1]
-				response = checkBlacklist(geoIP2Database, ip)
+				ip = value
+			case "client_name":
+				clientName = value
 			}
 		}
 		if scanner.Text() == "" {
+			if checkWhitelist(clientName) == false {
+				response = checkBlacklist(geoIP2Database, ip)
+			}
 			actionLine := fmt.Sprintf("action=%s",response)
 			sysLog(syslog.LOG_DEBUG, fmt.Sprintf("sending response '%s' to stdout", actionLine))
 			writer := bufio.NewWriter(os.Stdout)
@@ -143,6 +154,7 @@ func checkBlacklist(database string, ipAddress string) string {
 
 func loadConfiguration(configuration string) {
 	var blacklist []string
+	var whitelist []string
 	filename, err := filepath.Abs(configuration)
 	if err != nil {
 		sysLog(syslog.LOG_ERR,err.Error())
@@ -155,20 +167,25 @@ func loadConfiguration(configuration string) {
 		var config Configuration
 		err = yaml.Unmarshal(yamlFile, &config)
 		if err == nil {
-			for _, blacklistedCountry := range config.BlackList {
+			for _, blacklistedCountry := range config.Blacklist {
 				isoCode := strings.TrimSpace(blacklistedCountry)
 				if len(isoCode) == 2 {
-					blacklist = append(blacklist, blacklistedCountry)
+					blacklist = append(blacklist, isoCode)
 				} else {
 					sysLog(syslog.LOG_WARNING, fmt.Sprintf("ignoring invalid string '%s' for ISO Country code", blacklistedCountry))
 				}
 			}
+			for _, whitelistedClient := range config.Whitelist {
+				clientName := strings.ToLower(strings.TrimSpace(whitelistedClient))
+				if len(clientName) > 0 && strings.Contains(clientName, "."){
+					whitelist = append(whitelist, clientName)
+				} else {
+					sysLog(syslog.LOG_WARNING, fmt.Sprintf("ignoring invalid string '%s' for client name", clientName))
+				}
+			}
 		}
-		if len(blacklist) == 0 {
-			sysLog(syslog.LOG_WARNING, fmt.Sprintf("no valid blacklist found in configuration file %s", filename))
-		} else {
-			blacklistedCountries = blacklist
-		}
+		blacklistedCountries = blacklist
+		whitelistedClients = whitelist
 		debug = config.Debug
 		databaseFile, err := filepath.Abs(config.GeoIP2Database)
 		if err != nil {
@@ -193,5 +210,18 @@ func loadConfiguration(configuration string) {
 	sysLog(syslog.LOG_INFO, fmt.Sprintf("blacklisted countries: %v", blacklistedCountries))
 	sysLog(syslog.LOG_INFO, fmt.Sprintf("geoip2 database: %v", geoIP2Database))
 	sysLog(syslog.LOG_INFO, fmt.Sprintf("refresh time: %s", refreshInterval.String()))
+	sysLog(syslog.LOG_INFO, fmt.Sprintf("whitelisted clients: %v", whitelistedClients))
 }
 
+func checkWhitelist(clientName string) bool {
+	allow := false
+	for _,allowedClient := range whitelistedClients {
+		match := strings.HasSuffix(strings.ToLower(strings.TrimSpace(clientName)), allowedClient)
+		if match == true {
+			sysLog(syslog.LOG_INFO, fmt.Sprintf("client %s is whitelisted under %s", clientName,allowedClient))
+			allow = true
+			break
+		}
+	}
+	return allow
+}

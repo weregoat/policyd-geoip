@@ -33,7 +33,10 @@ blacklist:
   - A2 # Maxmind own code for satellite providers
   - O1 # Maxmind own code for other countries
 #  - SE # Sweden
-#  Etc. Etc.
+   #  Etc. Etc.
+# Whitelisted clients (matched as prefix)
+whitelist:
+  - google.com
 # Full path to the GeoIP2 database to use
 geoip2_database: /usr/share/GeoIP/GeoLite2-Country.mmdb
 # Refresh the configuration if the previous policy request
