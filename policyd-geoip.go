@@ -82,6 +82,8 @@ func main() {
 				if len(ip) > 0 {
 					response = checkBlacklist(geoIP2Database, ip)
 				}
+			} else {
+				response = Dunno
 			}
 			actionLine := fmt.Sprintf("action=%s",response)
 			sendToSyslog(syslog.LOG_DEBUG, fmt.Sprintf("sending response '%s' to stdout", actionLine))
