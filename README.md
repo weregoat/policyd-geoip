@@ -10,7 +10,7 @@ policy-geoip unix -	n	n	-	-	spawn
   user=nobody argv=/path/to/bin/policyd-geoip --configuration /path/to/policyd-geoip.yaml
 ```
 
-`--configuration` flag is optional; program defaults to use `/usr/local/etc/policyd-geoip.yaml`.
+If `--configuration` flag is omitted, the program tries to access `/etc/policyd-geoip.yaml`.
 
 ### Then you can use the policy like so in `main.cf`:
 ```

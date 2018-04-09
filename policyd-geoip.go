@@ -21,7 +21,7 @@ const Blacklisted = "reject Not interested"
 const Reject = "reject"
 const Defer = "defer_if_permit"
 const DefaultGeoIP2Database = "/usr/share/GeoIP/GeoLite2-Country.mmdb"
-const DefaultConfigurationFile = "/usr/local/etc/policyd-geoip.yaml"
+const DefaultConfigurationFile = "/etc/policyd-geoip.yaml"
 const DefaultRefreshInterval = "30m"
 
 var debug = false
