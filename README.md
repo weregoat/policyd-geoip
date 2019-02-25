@@ -49,6 +49,7 @@ refresh_interval: 10m
 # the configuation.
 
 # Name of the syslog facility
+# Only mail,auth,authpriv,user,daemon,local0 ... local7 will be accepted
 syslog_facility: mail
 # Syslog tag 
 syslog_tag: policyd-geoip
