@@ -24,7 +24,6 @@ policy-geoip_time_limit = 3600
 
 ## YAML configuration example
 ```
----
 # Debug log to syslog
 debug: true
 # ISO 3166-1 alpha2 codes for country to blacklist
@@ -34,7 +33,7 @@ blacklist:
   - O1 # Maxmind own code for other countries
 #  - SE # Sweden
    #  Etc. Etc.
-# Whitelisted clients (matched as prefix)
+# Whitelisted clients (matched at the end)
 whitelist:
   - google.com
 # Full path to the GeoIP2 database to use
@@ -42,4 +41,15 @@ geoip2_database: /usr/share/GeoIP/GeoLite2-Country.mmdb
 # Refresh the configuration if the previous policy request
 # was older than this interval
 refresh_interval: 10m
+
+# Syslog options
+# Be aware that if any of the following options is rejected, the default ones 
+# (mail, policyd-geoip) will be used instead. 
+# That includes the error/warning messages and errors that block the parsing of
+# the configuation.
+
+# Name of the syslog facility
+syslog_facility: mail
+# Syslog tag 
+syslog_tag: policyd-geoip
 ```
