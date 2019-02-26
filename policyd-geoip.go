@@ -169,7 +169,7 @@ func loadConfiguration(configuration string) {
 	if err != nil {
 		sendToSyslog(syslog.LOG_ERR, err.Error())
 	}
-	sendToSyslog(syslog.LOG_INFO, fmt.Sprintf("importing configuration file %s", filename))
+
 	yamlFile, err := ioutil.ReadFile(filename)
 	if err != nil {
 		sendToSyslog(syslog.LOG_ERR, err.Error())
@@ -182,7 +182,8 @@ func loadConfiguration(configuration string) {
 			parseConfiguration(config)
 		}
 	}
-	sendToSyslog(syslog.LOG_INFO, fmt.Sprintf("debug: %v", debug))
+	sendToSyslog(syslog.LOG_INFO, fmt.Sprintf("configuration file: %s", filename))
+	sendToSyslog(syslog.LOG_INFO, fmt.Sprintf("debug: %t", debug))
 	sendToSyslog(syslog.LOG_INFO, fmt.Sprintf("blacklisted countries: %v", blacklistedCountries))
 	sendToSyslog(syslog.LOG_INFO, fmt.Sprintf("geoip2 database: %v", geoIP2Database))
 	sendToSyslog(syslog.LOG_INFO, fmt.Sprintf("refresh time: %s", refreshInterval.String()))
