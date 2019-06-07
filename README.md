@@ -53,4 +53,15 @@ refresh_interval: 10m
 syslog_facility: mail
 # Syslog tag 
 syslog_tag: policyd-geoip
+
+# Whois lookups
+# Optional, it will be used only in case the GeoIP results in a pass and one
+# of the server or program field is not empty.
+whois:
+  # Specify the initial server to use for Whois lookups
+  server: whois.iana.org
+  # Specify the path to the program to use to query for whois entry
+  program: /usr/local/bin
+  # If both are set, the program will take precedence  and the server will only be used 
+  # in case of no results from the program as a fallback.
 ```
