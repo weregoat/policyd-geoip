@@ -149,7 +149,6 @@ func checkGeoIP2(response *string, database string, ip net.IP) {
 	if ip != nil && (*response == Dunno || *response == Defer) {
 		isoCode := geoIP2Lookup(ip, database)
 		if isoCode != "" {
-			sendToSyslog(syslog.LOG_DEBUG, fmt.Sprintf("geoIP2 database lists address %s as from country %s", ip.String(), isoCode))
 			*response = Dunno
 			result := "allowed"
 			if isCountryCodeBlacklisted(blacklistedCountries, isoCode) {
@@ -246,6 +245,8 @@ func parseConfiguration(config Configuration) {
 		}
 	}
 
+	// Empty the existing blacklist
+	blacklistedCountries = blacklistedCountries[:0]
 	for _, blacklistedCountry := range config.Blacklist {
 		isoCode := strings.TrimSpace(blacklistedCountry)
 		if len(isoCode) == 2 {
@@ -255,6 +256,7 @@ func parseConfiguration(config Configuration) {
 		}
 	}
 
+	whitelistedClients = whitelistedClients[:0]
 	for _, whitelistedClient := range config.Whitelist {
 		clientName := strings.ToLower(strings.TrimSpace(whitelistedClient))
 		if len(clientName) > 0 && strings.Contains(clientName, ".") {
@@ -285,6 +287,7 @@ func parseConfiguration(config Configuration) {
 		refreshInterval = interval
 	}
 
+	whoisSources = whoisSources[:0]
 	whoisProgram := config.Whois.Program
 	if len(whoisProgram) > 0 {
 		source, err := program.New(whoisProgram)
@@ -322,6 +325,7 @@ func checkWhois(response *string, resource string) {
 				} else {
 					sendToSyslog(syslog.LOG_DEBUG, fmt.Sprintf("no country code was found for resource %s", resource))
 				}
+				break // One valid answer is enough. The second source is a fallback.
 			} else {
 				sendToSyslog(syslog.LOG_NOTICE, fmt.Sprintf("no valid whois response from %s on resource %s", source, resource))
 			}
