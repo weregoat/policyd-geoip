@@ -57,11 +57,11 @@ type WhoisConfiguration struct {
 
 func main() {
 	start := time.Now()
+	sendToSyslog(syslog.LOG_INFO, "program started")
 	configuration := flag.String("configuration", DefaultConfigurationFile, "Path to the configuration")
 	flag.Parse()
 	SyslogTag = path.Base(os.Args[0]) // Defaults to the name of the executable
 	loadConfiguration(*configuration)
-	sendToSyslog(syslog.LOG_INFO, "program started")
 
 	response := Defer
 
@@ -151,11 +151,13 @@ func checkGeoIP2(response *string, database string, ip net.IP) {
 		if isoCode != "" {
 			*response = Dunno
 			result := "allowed"
+			level := syslog.LOG_DEBUG
 			if isCountryCodeBlacklisted(blacklistedCountries, isoCode) {
 				*response = Blacklisted
 				result = "not allowed"
+				level = syslog.LOG_INFO
 			}
-			sendToSyslog(syslog.LOG_INFO, fmt.Sprintf("client with address %s from country %s is %s", ip.String(), isoCode, result))
+			sendToSyslog(level, fmt.Sprintf("client with address %s from country %s is %s", ip.String(), isoCode, result))
 		} else {
 			sendToSyslog(syslog.LOG_NOTICE, fmt.Sprintf("no country found for address %s", ip.String()))
 			*response = Reject
@@ -320,6 +322,7 @@ func checkWhois(response *string, resource string) {
 					sendToSyslog(syslog.LOG_DEBUG, fmt.Sprintf("found country code %s for resource %s", isoCode, resource))
 					if isCountryCodeBlacklisted(blacklistedCountries, isoCode) {
 						*response = Blacklisted
+						sendToSyslog(syslog.LOG_INFO, fmt.Sprintf("resource %s from country code %s is not allowed", resource, isoCode))
 						break
 					}
 				} else {

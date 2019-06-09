@@ -1,5 +1,5 @@
 # policyd-geoip
-Small GoLang program to use MaxMind's GeoIP2 database for [Postfix policy delegation](http://www.postfix.org/SMTPD_POLICY_README.html)
+Small GoLang program to use MaxMind's GeoIP2 database (and now, optionally, Whois lookups) for [Postfix policy delegation](http://www.postfix.org/SMTPD_POLICY_README.html)
 
 ## How to use
 
