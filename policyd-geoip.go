@@ -56,13 +56,13 @@ type WhoisConfiguration struct {
 }
 
 func main() {
-	SyslogTag = path.Base(os.Args[0]) // Defaults to the name of the executable
-	sendToSyslog(syslog.LOG_INFO, "program started")
+
 	start := time.Now()
 	configuration := flag.String("configuration", DefaultConfigurationFile, "Path to the configuration")
 	flag.Parse()
 	loadConfiguration(*configuration)
 
+	sendToSyslog(syslog.LOG_INFO, "program started")
 	response := Defer
 
 	scanner := bufio.NewScanner(os.Stdin)
@@ -215,6 +215,8 @@ func parseConfiguration(config Configuration) {
 
 	if len(config.Tag) > 0 {
 		SyslogTag = strings.TrimSpace(config.Tag)
+	} else {
+		SyslogTag = path.Base(os.Args[0]) // Defaults to the name of the executable
 	}
 
 	if len(config.Facility) > 0 {
