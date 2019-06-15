@@ -135,8 +135,8 @@ func checkBlacklist(ipAddress string, clientName string) string {
 	if ip != nil {
 		checkGeoIP2(&response, geoIP2Database, ip) // Check the IP address using Geoip2
 		if len(whoisSources) > 0 {                 // If any of the Whois sources have been configured correctly
-			checkWhois(&response, ip.String())           // Check the Provider country using the IP
-			checkWhois(&response, getDomain(clientName)) // Check the Registrant through the client's domain
+			checkWhois(&response, ip.String()) // Check the Provider country using the IP
+			checkDomain(&response, clientName) // Check the Registrant country using the client FQDN, if any.
 		}
 		status := "undecided"
 		switch response {
@@ -333,8 +333,43 @@ func parseConfiguration(config Configuration) {
 	}
 }
 
-func checkWhois(response *string, resource string) {
-	if len(resource) > 0 && (*response == Dunno || *response == Defer) {
+func checkDomain(response *string, clientName string) {
+	if *response == Dunno || *response == Defer {
+		parts := strings.Split(clientName, ".")
+		// https://en.wikipedia.org/wiki/Fully_qualified_domain_name
+		// The FQDN should have been split into a hostname parts[0]
+		// and the domain parts[1:]
+		// Otherwise is not really something we should have got as
+		// client_name (because it's not FQDN
+		if len(parts) > 2 {
+			domain := parts[len(parts) - 1] // We pick the last domain part
+			// This can be *already* the ISO code, so we check that straight away
+			if len(domain) == 2 {
+				sendToSyslog(
+					syslog.LOG_DEBUG,
+					fmt.Sprintf("Checking if top-level domain %s is a blacklisted country", domain),
+					)
+				if isCountryCodeBlacklisted(blacklistedCountries, strings.ToUpper(domain)) {
+					*response = Blacklisted // Well the country is blacklisted, that's enough for me
+					return
+				}
+			}
+			for i := len(parts) - 2 ; i > 0; i-- { // We pick each part after that from the end
+				domain = parts[i] + "." + domain // and we build a possible domain
+				isoCode := getWhoisCountry(domain) // Then we try out if we can get a country from it
+				if len(isoCode) > 0 {
+					if isCountryCodeBlacklisted(blacklistedCountries, isoCode) {
+						*response = Blacklisted
+					}
+					break // We got a country, that's enough
+				}
+			}
+		}
+	}
+}
+
+func getWhoisCountry(resource string) (isoCode string) {
+	if len(resource) > 0 {
 		for _, source := range whoisSources {
 			sendToSyslog(
 				syslog.LOG_DEBUG,
@@ -342,23 +377,19 @@ func checkWhois(response *string, resource string) {
 			)
 			whoisResponse := source.Query(resource)
 			if whoisResponse.IsValid() {
-				isoCode := whoisResponse.CountryCode
+				isoCode = whoisResponse.CountryCode
 				if len(isoCode) > 0 {
 					sendToSyslog(
 						syslog.LOG_INFO,
 						fmt.Sprintf("Whois lookup lists resource %s as from country %s", resource, isoCode),
 					)
-					if isCountryCodeBlacklisted(blacklistedCountries, isoCode) {
-						*response = Blacklisted
-						break
-					}
 				} else {
 					sendToSyslog(
 						syslog.LOG_DEBUG,
 						fmt.Sprintf("no country code was found for resource %s", resource),
 					)
 				}
-				break // One valid answer is enough. The second source is a fallback.
+				return isoCode // One valid answer is enough. The second source is a fallback.
 			} else {
 				sendToSyslog(
 					syslog.LOG_DEBUG,
@@ -372,26 +403,18 @@ func checkWhois(response *string, resource string) {
 			}
 		}
 	}
+	return
 }
 
-func getDomain(fqdn string) string {
-	var domain string
-	// https://en.wikipedia.org/wiki/Fully_qualified_domain_name
-	parts := strings.SplitN(fqdn, ".", 2)
-	// The FQDN should have been split into a hostname parts[0]
-	// and a domain parts[1]
-	if len(parts) == 2 {
-		// It's still possible, by the split above, that the domain
-		// is not really a domain, because the hostname was missing
-		// Then it was not really a fqdn, but a domain
-		if strings.Index(parts[1], ".") > 0 {
-			domain = parts[1]
-		} else {
-			domain = fqdn
+func checkWhois(response *string, resource string) {
+	 if *response == Dunno || *response == Defer {
+		isoCode := getWhoisCountry(resource)
+		if isCountryCodeBlacklisted(blacklistedCountries, isoCode) {
+			*response = Blacklisted
 		}
 	}
-	return domain
 }
+
 
 func isCountryCodeBlacklisted(blacklist []string, isoCodes ...string) bool {
 	sendToSyslog(
@@ -400,6 +423,7 @@ func isCountryCodeBlacklisted(blacklist []string, isoCodes ...string) bool {
 	)
 	for _, isoCode := range isoCodes {
 		if len(isoCode) > 0 {
+			isoCode = strings.ToUpper(isoCode) // The blacklist elements are all Uppercase (see config parsing code)
 			for _, blacklistedIsoCode := range blacklist {
 				if isoCode == blacklistedIsoCode {
 					sendToSyslog(syslog.LOG_DEBUG, fmt.Sprintf("ISO country code %s is blacklisted", isoCode))
