@@ -86,7 +86,13 @@ func main() {
 				}
 				ip = value
 			case "client_name":
-				clientName = value
+				if strings.ToLower(value) != "unknown" {
+					clientName = value
+				}
+			case "reverse_client_name":
+				if len(clientName) == 0 {
+					clientName = value
+				}
 			}
 		}
 		if scanner.Text() == "" {
