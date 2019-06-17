@@ -62,7 +62,7 @@ func main() {
 	flag.Parse()
 	loadConfiguration(*configuration)
 
-	sendToSyslog(syslog.LOG_INFO, "program started")
+
 	response := Defer
 
 	scanner := bufio.NewScanner(os.Stdin)
@@ -192,6 +192,7 @@ func loadConfiguration(configuration string) {
 			parseConfiguration(config)
 		}
 	}
+	sendToSyslog(syslog.LOG_INFO, "program started")
 	sendToSyslog(syslog.LOG_DEBUG, fmt.Sprintf("configuration file: %s", filename))
 	sendToSyslog(syslog.LOG_DEBUG, fmt.Sprintf("debug: %t", debug))
 	sendToSyslog(syslog.LOG_DEBUG, fmt.Sprintf("blacklisted countries: %v", blacklistedCountries))
