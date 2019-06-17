@@ -145,14 +145,16 @@ func checkBlacklist(ipAddress string, clientName string) string {
 			checkDomain(&response, clientName) // Check the Registrant country using the client FQDN, if any.
 		}
 		status := "undecided"
+		level := syslog.LOG_INFO
 		switch response {
 		case Reject:
 		case Blacklisted:
 			status = "not allowed"
+			level = syslog.LOG_NOTICE
 		case Dunno:
 			status = "allowed"
 		}
-		sendToSyslog(syslog.LOG_INFO, fmt.Sprintf("client %s[%s] is %s", clientName, ip.String(), status))
+		sendToSyslog(level, fmt.Sprintf("client %s[%s] is %s", clientName, ip.String(), status))
 	} else {
 		sendToSyslog(syslog.LOG_NOTICE, fmt.Sprintf("invalid client address '%s'", ipAddress))
 		response = Reject
