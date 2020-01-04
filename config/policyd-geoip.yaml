@@ -1,0 +1,26 @@
+# Should the program print debug information
+debug: false
+# ISO codes of countries not allowed to access the Postfix server
+blacklist:
+  - SE # Sweden
+  - US # USA
+# Special codes used by Maxmind:
+  - A1 # Anonymous Proxy
+  - A2 # Satellite Provider
+  - O1 # Other Country
+# Location of the Maxmind's Geoip2 database
+geoip2_database: "/usr/share/GeoIP/GeoLite2-Country.mmdb"
+# Refresh the configuration if the last processed request was this time ago
+refresh_interval: 30m
+# Domain that allows the client to skip the country check
+whitelist:
+  - google.com
+# All logs are sent to Syslog (the program is not supposed to be run in console)
+syslog_facility: mail
+syslog_tag: policyd-geoip2
+# Optionally can use data from Whois to guess the country
+whois_program: /usr/bin/whois
+# Optionally can use sender address's domain to guess country
+check_sender_address: true
+# Additional text to add to the REJECT message
+reject_message: "Not interested"
