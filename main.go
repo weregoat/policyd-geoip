@@ -276,15 +276,12 @@ func checkResource(settings Settings, resource string) string {
 		log := settings.Syslog
 		whoisResponse := settings.WhoisClient.Query(resource)
 		if whoisResponse.Error != nil {
-			log.Err(
+			log.Warning(
 				fmt.Sprintf(
-					"Error querying whois for resource %s: %s",
+					"No result querying whois for resource %s: %s",
 					resource, whoisResponse.Error.Error(),
 				),
 			)
-			// There were problems retrieving the country codes through
-			// Whois, we defer until, hopefully, someone fix the issue
-			result = Defer
 		} else {
 			log.Debug(
 				fmt.Sprintf(
