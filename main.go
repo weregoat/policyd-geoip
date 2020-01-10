@@ -86,14 +86,19 @@ func main() {
 						client.String(),
 					),
 				)
+			case Dunno:
 				settings.Syslog.Debug(
 					fmt.Sprintf("Client %s is not blacklisted",
 						client.String(),
 					),
 				)
+			default:
+				settings.Syslog.Warning(
+					fmt.Sprintf("Unhandled response: %s", response),
+					)
 			}
 
-			settings.Syslog.Debug(fmt.Sprintf("Sending response '%s' to stdout", line))
+			settings.Syslog.Debug(fmt.Sprintf("Sending response '%s' to stdout", action))
 			processDuration := time.Since(begin)
 			settings.Syslog.Debug(fmt.Sprintf("Processed in %s", processDuration.String()))
 			elapsed := time.Since(start)
@@ -151,6 +156,10 @@ func checkClient(settings Settings, client Client) string {
 	checkGeoIP2(settings, &client) // Check the IP address using Geoip2
 	checkTopLevelDomain(settings, &client)
 	checkWhois(settings, &client) // Try to guess country through Whois
+	if len(client.Status) == 0 {
+		// If we could not evaluate the client in any way
+		client.Status = Defer
+	}
 	return client.Status
 }
 
@@ -162,8 +171,6 @@ func checkGeoIP2(settings Settings, client *Client) {
 			if len(isoCode) == 2 {
 				client.Status = checkBlacklist(settings, isoCode)
 			}
-		} else {
-			client.Status = Defer
 		}
 	}
 }
@@ -196,12 +203,11 @@ func checkWhois(settings Settings, client *Client) {
 					domain := parts[len(parts)-1]         // We pick the last domain part
 					for i := len(parts) - 2; i > 0; i-- { // We pick each part after that from the end
 						domain = parts[i] + "." + domain // and we build a possible domain
-						response := checkResource(settings, domain)
-						if response != Dunno {
+						client.Status = checkResource(settings, domain)
+						if client.Status != Dunno {
 							// Either we failed to look it up
 							// or is blacklisted.
 							// In both cases we break up
-							client.Status = response
 							return
 						}
 					}

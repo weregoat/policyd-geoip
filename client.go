@@ -19,7 +19,7 @@ func newClient() Client {
 		Name:   "",
 		IP:     nil,
 		Sender: "",
-		Status: Defer,
+		Status: "",
 	}
 	return client
 }
