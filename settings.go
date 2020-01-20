@@ -17,17 +17,17 @@ const DefaultInterval = time.Minute * 30
 
 // Configuration is the struct holding the description of the YAML fields.
 type Configuration struct {
-	Path            string
-	Debug           bool     `yaml:"debug"`
-	Blacklist       []string `yaml:"blacklist"`
-	GeoIP2Database  string   `yaml:"geoip2_database"`
-	RefreshInterval string   `yaml:"refresh_interval"`
-	Whitelist       []string `yaml:"whitelist"`
-	Facility        string   `yaml:"syslog_facility"`
-	Tag             string   `yaml:"syslog_tag"`
-	RejectMessage   string   `yaml:"reject_message"`
-	WhoisProgram    string   `yaml:"whois_program"`
-	CheckSenderAddress bool  `yaml:"check_sender_address"`
+	Path               string
+	Debug              bool     `yaml:"debug"`
+	Blacklist          []string `yaml:"blacklist"`
+	GeoIP2Database     string   `yaml:"geoip2_database"`
+	RefreshInterval    string   `yaml:"refresh_interval"`
+	Whitelist          []string `yaml:"whitelist"`
+	Facility           string   `yaml:"syslog_facility"`
+	Tag                string   `yaml:"syslog_tag"`
+	RejectMessage      string   `yaml:"reject_message"`
+	WhoisProgram       string   `yaml:"whois_program"`
+	CheckSenderAddress bool     `yaml:"check_sender_address"`
 }
 
 // Settings is the struct holding the properties required by the program after
@@ -141,8 +141,6 @@ func parseConfiguration(config Configuration) (settings Settings, err error) {
 	return
 }
 
-
-
 // getList tries to build unique white and blacklists.
 func getList(logger Syslog, name string, list ...string) []string {
 	var entries []string
@@ -207,5 +205,3 @@ func (s Settings) Show() []string {
 	}
 	return settings
 }
-
-

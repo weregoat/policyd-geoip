@@ -18,8 +18,6 @@ const Reject = "reject"
 const Defer = "defer_if_permit"
 const DefaultConfigurationFile = "/etc/policyd-geoip.yaml"
 
-
-
 // main function
 func main() {
 
@@ -95,7 +93,7 @@ func main() {
 			default:
 				settings.Syslog.Warning(
 					fmt.Sprintf("Unhandled response: %s", response),
-					)
+				)
 			}
 
 			settings.Syslog.Debug(fmt.Sprintf("Sending response '%s' to stdout", action))
@@ -137,7 +135,7 @@ func readConfig(path string) (Settings, error) {
 		return settings, err
 	}
 	settings, err = parseConfiguration(config)
-	for _,setting := range settings.Show() {
+	for _, setting := range settings.Show() {
 		settings.Syslog.Debug(setting)
 	}
 	return settings, err
@@ -181,7 +179,7 @@ func checkWhois(settings Settings, client *Client) {
 		if settings.WhoisClient != nil {
 			settings.Syslog.Debug(
 				fmt.Sprintf(
-				"Guessing country for client %s through %s",
+					"Guessing country for client %s through %s",
 					client.String(),
 					settings.Configuration.WhoisProgram,
 				),
@@ -251,11 +249,11 @@ func checkTopLevelDomain(settings Settings, client *Client) {
 			fmt.Sprintf(
 				"Guessing country of top-level domains %q",
 				names,
-				),
-			)
+			),
+		)
 		for _, name := range names {
 			last := strings.LastIndex(name, ".")
-			if last > 0  {
+			if last > 0 {
 				top := strings.Trim(name[last:], ".")
 				if len(top) == 2 {
 					top = strings.ToUpper(top)
@@ -294,8 +292,8 @@ func checkResource(settings Settings, resource string) string {
 					"Whois lookup for %s resulted in the following countries: %q",
 					resource,
 					whoisResponse.CountryCodes,
-					),
-				)
+				),
+			)
 			for _, isoCode := range whoisResponse.CountryCodes {
 				result = checkBlacklist(settings, isoCode)
 				// Any of the country being blacklisted is enough
@@ -373,7 +371,6 @@ func geoIP2Lookup(settings Settings, ip net.IP) string {
 	return isoCode
 }
 
-
 // Parses the line with the attributes from Postfix.
 func parseLine(client *Client, line string, log Syslog) {
 	values := strings.Split(line, "=")
@@ -397,5 +394,3 @@ func parseLine(client *Client, line string, log Syslog) {
 		}
 	}
 }
-
-
