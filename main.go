@@ -62,16 +62,8 @@ func main() {
 			} else {
 				response = checkClient(settings, client)
 			}
-			if len(settings.RejectMessage) > 0 && response == Reject {
-				// It doesn't really need to be efficient. Clearer this way.
-				response = response + " " + settings.RejectMessage
-			}
-			action := fmt.Sprintf("action=%s", response)
 			switch response {
 			case Reject:
-				if len(settings.RejectMessage) > 0 {
-					action = action + " " + settings.RejectMessage
-				}
 				settings.Syslog.Info(
 					fmt.Sprintf(
 						"Client %s is blacklisted",
@@ -94,8 +86,13 @@ func main() {
 				settings.Syslog.Warning(
 					fmt.Sprintf("Unhandled response: %s", response),
 				)
+				response = Defer
 			}
-
+			if len(settings.RejectMessage) > 0 && response == Reject {
+				// It doesn't really need to be efficient. Clearer this way.
+				response = response + " " + settings.RejectMessage
+			}
+			action := fmt.Sprintf("action=%s", response)
 			settings.Syslog.Debug(fmt.Sprintf("Sending response '%s' to stdout", action))
 			processDuration := time.Since(begin)
 			settings.Syslog.Debug(fmt.Sprintf("Processed in %s", processDuration.String()))
