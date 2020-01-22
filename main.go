@@ -242,27 +242,29 @@ func checkTopLevelDomain(settings Settings, client *Client) {
 		if len(client.Sender) > 0 && settings.CheckSenderAddress {
 			names = append(names, client.Sender)
 		}
-		settings.Syslog.Debug(
-			fmt.Sprintf(
-				"Guessing country of top-level domains %q",
-				names,
-			),
-		)
-		for _, name := range names {
-			last := strings.LastIndex(name, ".")
-			if last > 0 {
-				top := strings.Trim(name[last:], ".")
-				if len(top) == 2 {
-					top = strings.ToUpper(top)
-					settings.Syslog.Debug(
-						fmt.Sprintf(
-							"Checking if top-level domain %s is the isoCode of a blacklisted country",
-							top,
-						),
-					)
-					if checkBlacklist(settings, top) == Reject {
-						client.Status = Reject
-						return
+		if len(names) > 0 {
+			settings.Syslog.Debug(
+				fmt.Sprintf(
+					"Guessing country of top-level domains %q",
+					names,
+				),
+			)
+			for _, name := range names {
+				last := strings.LastIndex(name, ".")
+				if last > 0 {
+					top := strings.Trim(name[last:], ".")
+					if len(top) == 2 {
+						top = strings.ToUpper(top)
+						settings.Syslog.Debug(
+							fmt.Sprintf(
+								"Checking if top-level domain %s is the isoCode of a blacklisted country",
+								top,
+							),
+						)
+						if checkBlacklist(settings, top) == Reject {
+							client.Status = Reject
+							return
+						}
 					}
 				}
 			}
