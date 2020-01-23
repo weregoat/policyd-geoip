@@ -237,10 +237,10 @@ func checkTopLevelDomain(settings Settings, client *Client) {
 	if client.Status != Reject {
 		var names []string
 		if len(client.Name) > 2 {
-			names = append(names, client.Name)
+			names = add(names, client.Name)
 		}
 		if len(client.Sender) > 0 && settings.CheckSenderAddress {
-			names = append(names, client.Sender)
+			names = add(names, client.Sender)
 		}
 		if len(names) > 0 {
 			settings.Syslog.Debug(
@@ -372,13 +372,12 @@ func geoIP2Lookup(settings Settings, ip net.IP) string {
 
 // Parses the line with the attributes from Postfix.
 func parseLine(client *Client, line string, log Syslog) {
-	values := strings.Split(line, "=")
-	if len(values) != 2 {
-		log.Notice(fmt.Sprintf("Skipping attribute line %s", line))
+	pos := strings.Index(line, "=")
+	if pos <= 0 {
 		return
 	}
-	key := values[0]
-	value := strings.TrimSpace(values[1])
+	key := line[:pos]
+	value := strings.TrimSpace(line[pos+1:])
 	if len(value) > 0 {
 		switch key {
 		case "client_address":
@@ -392,4 +391,17 @@ func parseLine(client *Client, line string, log Syslog) {
 			client.Sender = value
 		}
 	}
+}
+
+func add(original []string, element string) []string {
+	if len(element) > 0 {
+		e := strings.ToLower(element)
+		for _,o := range original {
+			if e == strings.ToLower(o) {
+				return original
+			}
+		}
+		original = append(original, element)
+	}
+	return original
 }
