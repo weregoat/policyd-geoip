@@ -403,11 +403,11 @@ func add(original []string, element string) []string {
 }
 
 func split(line string, separator string) (key string, value string) {
-	pos := strings.Index(line, separator)
-	if pos <= 0 {
-		return
+	parts := strings.SplitN(line, separator, 2)
+	// I am only interested in lines containing the separator
+	if len(parts) == 2 {
+		key = strings.TrimSpace(parts[0])
+		value = strings.TrimSpace(parts[1])
 	}
-	key = strings.TrimSpace(line[:pos])
-	value = strings.TrimSpace(line[pos+1:])
 	return
 }
