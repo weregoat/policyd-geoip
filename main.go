@@ -396,7 +396,7 @@ func parseLine(client *Client, line string, log Syslog) {
 func add(original []string, element string) []string {
 	if len(element) > 0 {
 		e := strings.ToLower(element)
-		for _,o := range original {
+		for _, o := range original {
 			if e == strings.ToLower(o) {
 				return original
 			}
