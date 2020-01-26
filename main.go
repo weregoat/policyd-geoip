@@ -295,12 +295,11 @@ func checkResource(settings Settings, resource string) string {
 	if settings.WhoisClient != nil && len(resource) > 0 {
 		log := settings.Syslog
 		whoisResponse := settings.WhoisClient.Query(resource)
-		if whoisResponse.Error != nil {
-			log.Warning(
+		if ! whoisResponse.IsValid() {
+			log.Debug(
 				fmt.Sprintf(
-					"No result querying whois for resource %s: %s",
-					resource, whoisResponse.Error.Error(),
-				),
+					"No result querying whois for resource %s", resource,
+					),
 			)
 		} else {
 			log.Debug(
