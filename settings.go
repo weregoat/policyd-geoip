@@ -9,11 +9,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"strings"
-	"time"
 )
-
-// The default interval for refreshing the configuration.
-const DefaultInterval = time.Minute * 30
 
 // Configuration is the struct holding the description of the YAML fields.
 type Configuration struct {
@@ -21,7 +17,6 @@ type Configuration struct {
 	Debug              bool     `yaml:"debug"`
 	Blacklist          []string `yaml:"blacklist"`
 	GeoIP2Database     string   `yaml:"geoip2_database"`
-	RefreshInterval    string   `yaml:"refresh_interval"`
 	Whitelist          []string `yaml:"whitelist"`
 	Facility           string   `yaml:"syslog_facility"`
 	Tag                string   `yaml:"syslog_tag"`
@@ -37,7 +32,6 @@ type Settings struct {
 	Syslog             Syslog
 	GeoIP2Database     string
 	BlackList          []string
-	RefreshInterval    time.Duration
 	WhiteList          []string
 	WhoisClient        *whois.Client
 	RejectMessage      string
@@ -98,24 +92,6 @@ func parseConfiguration(config Configuration) (settings Settings, err error) {
 			),
 		)
 	}
-
-	var interval time.Duration
-	if len(config.RefreshInterval) > 0 {
-		interval, err = time.ParseDuration(config.RefreshInterval)
-		if err != nil {
-			logger.Warning(
-				fmt.Sprintf(
-					"Error parsing refresh time element in configuration file %s: %s",
-					config.Path,
-					err.Error(),
-				),
-			)
-		}
-	}
-	if interval == 0 { // Duration is an int64
-		interval = DefaultInterval
-	}
-	settings.RefreshInterval = interval
 
 	if len(config.WhoisProgram) > 0 {
 		source, err := program.New(config.WhoisProgram)
@@ -194,7 +170,6 @@ func (s Settings) Show() []string {
 	settings := []string{
 		fmt.Sprintf("Configuration file: %s", s.Configuration.Path),
 		fmt.Sprintf("GeoIP2 database: %s", s.GeoIP2Database),
-		fmt.Sprintf("Refresh interval: %s", s.RefreshInterval),
 		fmt.Sprintf("Syslog tag: %s", s.Syslog.Tag),
 		fmt.Sprintf("Syslog facility: %s", getPriorityName(s.Syslog.Facility)),
 		fmt.Sprintf("Blacklist: %q", s.BlackList),

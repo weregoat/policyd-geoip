@@ -10,8 +10,6 @@ blacklist:
   - O1 # Other Country
 # Location of the Maxmind's Geoip2 database
 geoip2_database: "/usr/share/GeoIP/GeoLite2-Country.mmdb"
-# Refresh the configuration if the last processed request was this time ago
-refresh_interval: 30m
 # Domain that allows the client to skip the country check
 whitelist:
   - google.com
