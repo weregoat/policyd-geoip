@@ -21,7 +21,6 @@ const DefaultConfigurationFile = "/etc/policyd-geoip.yaml"
 // main function
 func main() {
 
-	start := time.Now()
 	configuration := flag.String("configuration", DefaultConfigurationFile, "Path to the configuration")
 	flag.Parse()
 
@@ -44,6 +43,9 @@ func main() {
 	}
 
 	settings.Syslog.Info("Program started")
+	for _, setting := range settings.Show() {
+		settings.Syslog.Debug(setting)
+	}
 	defer settings.Syslog.Info("Program ended")
 	client := newClient()
 
@@ -100,22 +102,6 @@ func main() {
 			settings.Syslog.Debug(fmt.Sprintf("Sending response '%s' to stdout", action))
 			processDuration := time.Since(begin)
 			settings.Syslog.Debug(fmt.Sprintf("Processed in %s", processDuration.String()))
-			elapsed := time.Since(start)
-			if elapsed.Minutes() >= settings.RefreshInterval.Minutes() {
-				settings.Syslog.Debug("refreshing configuration")
-				newSettings, err := readConfig(*configuration)
-				if err == nil {
-					settings = newSettings
-				} else {
-					settings.Syslog.Err(
-						fmt.Sprintf(
-							"Ignoring new configuration because of error: %s",
-							err.Error(),
-						),
-					)
-				}
-				start = time.Now()
-			}
 			print(action)
 			client = newClient()
 		}
@@ -136,9 +122,7 @@ func readConfig(path string) (Settings, error) {
 		return settings, err
 	}
 	settings, err = parseConfiguration(config)
-	for _, setting := range settings.Show() {
-		settings.Syslog.Debug(setting)
-	}
+
 	return settings, err
 }
 
@@ -295,11 +279,11 @@ func checkResource(settings Settings, resource string) string {
 	if settings.WhoisClient != nil && len(resource) > 0 {
 		log := settings.Syslog
 		whoisResponse := settings.WhoisClient.Query(resource)
-		if ! whoisResponse.IsValid() {
+		if !whoisResponse.IsValid() {
 			log.Debug(
 				fmt.Sprintf(
 					"No result querying whois for resource %s", resource,
-					),
+				),
 			)
 		} else {
 			log.Debug(
