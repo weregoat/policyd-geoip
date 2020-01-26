@@ -44,6 +44,7 @@ func main() {
 	}
 
 	settings.Syslog.Info("Program started")
+	defer settings.Syslog.Info("Program ended")
 	client := newClient()
 
 	scanner := bufio.NewScanner(os.Stdin)
@@ -57,7 +58,10 @@ func main() {
 		}
 		// End of input
 		if line == "" {
-			if isWhitelisted(client.Name, settings.WhiteList, settings.Syslog) {
+			if isWhitelisted(settings, client) {
+				// Dunno and not OK because, I think, it should only be
+				// a way to bypass **this** check. I may change my mind
+				// later though.
 				response = Dunno
 			} else {
 				response = checkClient(settings, client)
@@ -78,7 +82,7 @@ func main() {
 				)
 			case Dunno:
 				settings.Syslog.Debug(
-					fmt.Sprintf("Client %s is not blacklisted",
+					fmt.Sprintf("Client %s is allowed",
 						client.String(),
 					),
 				)
@@ -187,16 +191,20 @@ func checkWhois(settings Settings, client *Client) {
 					return
 				}
 			}
-			if len(client.Name) > 2 {
-				parts := strings.Split(client.Name, ".")
-				// https://en.wikipedia.org/wiki/Fully_qualified_domain_name
-				// The FQDN should have been split into a hostname parts[0]
-				// and the domain parts[1:]
-				// Otherwise is not really something we should have got as
-				// client_name (because it's not FQDN)
-				if len(parts) > 2 {
-					domain := parts[len(parts)-1]         // We pick the last domain part
-					for i := len(parts) - 2; i > 0; i-- { // We pick each part after that from the end
+			var names []string
+			if len(client.Name) > 0 {
+				names = add(names, client.Name)
+			}
+			if len(client.Sender) > 0 && settings.CheckSenderAddress {
+				_, senderDomain := split(client.Sender, "@")
+				names = add(names, senderDomain)
+			}
+			for _, name := range names {
+				settings.Syslog.Debug(fmt.Sprintf("Checking whois records for domain name: %s", name))
+				parts := strings.Split(name, ".")
+				if len(parts) >= 2 {
+					domain := parts[len(parts)-1]          // We pick the last domain part
+					for i := len(parts) - 2; i >= 0; i-- { // We pick each part after that from the end
 						domain = parts[i] + "." + domain // and we build a possible domain
 						client.Status = checkResource(settings, domain)
 						if client.Status != Dunno {
@@ -213,22 +221,30 @@ func checkWhois(settings Settings, client *Client) {
 }
 
 // Check if the client name is whitelisted.
-func isWhitelisted(clientName string, whitelistedClients []string, log Syslog) bool {
-	allow := false
-	for _, allowedClient := range whitelistedClients {
-		match := strings.HasSuffix(strings.ToLower(strings.TrimSpace(clientName)), allowedClient)
-		if match == true {
-			log.Info(
-				fmt.Sprintf(
-					"Client %s is whitelisted under %s",
-					clientName, allowedClient,
-				),
-			)
-			allow = true
-			break
+func isWhitelisted(settings Settings, client Client) bool {
+	names := make(map[string]string)
+	if len(client.Name) > 0 {
+		names["Client name"] = strings.ToLower(strings.TrimSpace(client.Name))
+	}
+	if len(client.Sender) > 0 && settings.CheckSenderAddress {
+		_, senderDomain := split(client.Sender, "@")
+		names["Sender domain"] = strings.ToLower(strings.TrimSpace(senderDomain))
+	}
+	for key, name := range names {
+		for _, allowed := range settings.WhiteList {
+			match := strings.HasSuffix(name, allowed)
+			if match == true {
+				settings.Syslog.Info(
+					fmt.Sprintf(
+						"%s %s is whitelisted",
+						key, name,
+					),
+				)
+				return true
+			}
 		}
 	}
-	return allow
+	return false
 }
 
 // Check if the client name or the sender address' top-level domain can be
