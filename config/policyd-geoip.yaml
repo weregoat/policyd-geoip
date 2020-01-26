@@ -18,7 +18,5 @@ syslog_facility: mail
 syslog_tag: policyd-geoip2
 # Optionally can use data from Whois to guess the country
 whois_program: /usr/bin/whois
-# Optionally can use sender address's domain to guess country
-check_sender_address: true
 # Additional text to add to the REJECT message
 reject_message: "Not interested"

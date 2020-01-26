@@ -179,7 +179,7 @@ func checkWhois(settings Settings, client *Client) {
 			if len(client.Name) > 0 {
 				names = add(names, client.Name)
 			}
-			if len(client.Sender) > 0 && settings.CheckSenderAddress {
+			if len(client.Sender) > 0 {
 				_, senderDomain := split(client.Sender, "@")
 				names = add(names, senderDomain)
 			}
@@ -210,7 +210,7 @@ func isWhitelisted(settings Settings, client Client) bool {
 	if len(client.Name) > 0 {
 		names["Client name"] = strings.ToLower(strings.TrimSpace(client.Name))
 	}
-	if len(client.Sender) > 0 && settings.CheckSenderAddress {
+	if len(client.Sender) > 0 {
 		_, senderDomain := split(client.Sender, "@")
 		names["Sender domain"] = strings.ToLower(strings.TrimSpace(senderDomain))
 	}
@@ -239,7 +239,7 @@ func checkTopLevelDomain(settings Settings, client *Client) {
 		if len(client.Name) > 2 {
 			names = add(names, client.Name)
 		}
-		if len(client.Sender) > 0 && settings.CheckSenderAddress {
+		if len(client.Sender) > 0 {
 			_, domainAddress := split(client.Sender, "@")
 			names = add(names, domainAddress)
 		}

@@ -13,30 +13,28 @@ import (
 
 // Configuration is the struct holding the description of the YAML fields.
 type Configuration struct {
-	Path               string
-	Debug              bool     `yaml:"debug"`
-	Blacklist          []string `yaml:"blacklist"`
-	GeoIP2Database     string   `yaml:"geoip2_database"`
-	Whitelist          []string `yaml:"whitelist"`
-	Facility           string   `yaml:"syslog_facility"`
-	Tag                string   `yaml:"syslog_tag"`
-	RejectMessage      string   `yaml:"reject_message"`
-	WhoisProgram       string   `yaml:"whois_program"`
-	CheckSenderAddress bool     `yaml:"check_sender_address"`
+	Path           string
+	Debug          bool     `yaml:"debug"`
+	Blacklist      []string `yaml:"blacklist"`
+	GeoIP2Database string   `yaml:"geoip2_database"`
+	Whitelist      []string `yaml:"whitelist"`
+	Facility       string   `yaml:"syslog_facility"`
+	Tag            string   `yaml:"syslog_tag"`
+	RejectMessage  string   `yaml:"reject_message"`
+	WhoisProgram   string   `yaml:"whois_program"`
 }
 
 // Settings is the struct holding the properties required by the program after
 // they have been parsed from the configuration.
 type Settings struct {
-	Debug              bool
-	Syslog             Syslog
-	GeoIP2Database     string
-	BlackList          []string
-	WhiteList          []string
-	WhoisClient        *whois.Client
-	RejectMessage      string
-	CheckSenderAddress bool
-	Configuration      Configuration
+	Debug          bool
+	Syslog         Syslog
+	GeoIP2Database string
+	BlackList      []string
+	WhiteList      []string
+	WhoisClient    *whois.Client
+	RejectMessage  string
+	Configuration  Configuration
 }
 
 // loadConfiguration opens a configuration file and parses the YAML into a struct.
@@ -108,7 +106,6 @@ func parseConfiguration(config Configuration) (settings Settings, err error) {
 			settings.WhoisClient = &client
 		}
 	}
-	settings.CheckSenderAddress = config.CheckSenderAddress
 
 	rejectMessage := strings.TrimSpace(config.RejectMessage)
 	if len(rejectMessage) > 0 {
@@ -175,7 +172,6 @@ func (s Settings) Show() []string {
 		fmt.Sprintf("Blacklist: %q", s.BlackList),
 		fmt.Sprintf("Whitelist: %q", s.WhiteList),
 		fmt.Sprintf("Whois program: %s", s.Configuration.WhoisProgram),
-		fmt.Sprintf("Check sender address: %t", s.CheckSenderAddress),
 		fmt.Sprintf("reject message: %s", s.RejectMessage),
 	}
 	return settings
