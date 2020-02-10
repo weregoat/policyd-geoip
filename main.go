@@ -162,7 +162,8 @@ func checkGeoIP2(settings Settings, client *Client) {
 func checkWhois(settings Settings, client *Client) {
 	if client.Status != Reject {
 		if settings.WhoisClient != nil {
-			settings.Syslog.Debug(
+			log := settings.Syslog
+			log.Debug(
 				fmt.Sprintf(
 					"Guessing country for client %s through %s",
 					client.String(),
@@ -170,7 +171,8 @@ func checkWhois(settings Settings, client *Client) {
 				),
 			)
 			if client.IP != nil {
-				if checkResource(settings, client.IP.String()) == Reject {
+				countries := queryResource(settings, client.IP.String())
+				if checkBlacklist(settings, countries...) == Reject {
 					client.Status = Reject
 					return
 				}
@@ -190,12 +192,16 @@ func checkWhois(settings Settings, client *Client) {
 					domain := parts[len(parts)-1]          // We pick the last domain part
 					for i := len(parts) - 2; i >= 0; i-- { // We pick each part after that from the end
 						domain = parts[i] + "." + domain // and we build a possible domain
-						client.Status = checkResource(settings, domain)
-						if client.Status != Dunno {
-							// Either we failed to look it up
-							// or is blacklisted.
-							// In both cases we break up
-							return
+						countries := queryResource(settings, domain)
+						if len(countries) > 0 {
+							if checkBlacklist(settings, countries...) == Reject {
+								client.Status = Reject
+								return
+							}
+							// Ideally there is only one valid domain we should
+							// use. So if we got any country from any of the
+							// guess, there is no need to try other combinations.
+							break
 						}
 					}
 				}
@@ -273,9 +279,9 @@ func checkTopLevelDomain(settings Settings, client *Client) {
 	}
 }
 
-// Check the whois record of a specific resource.
-func checkResource(settings Settings, resource string) string {
-	result := Dunno // Default is not blacklisted
+// Query the whois record of a specific resource.
+func queryResource(settings Settings, resource string) []string {
+	var countries []string
 	if settings.WhoisClient != nil && len(resource) > 0 {
 		log := settings.Syslog
 		whoisResponse := settings.WhoisClient.Query(resource)
@@ -286,6 +292,7 @@ func checkResource(settings Settings, resource string) string {
 				),
 			)
 		} else {
+			countries = whoisResponse.CountryCodes
 			log.Debug(
 				fmt.Sprintf(
 					"Whois lookup for %s resulted in the following countries: %q",
@@ -293,36 +300,29 @@ func checkResource(settings Settings, resource string) string {
 					whoisResponse.CountryCodes,
 				),
 			)
-			for _, isoCode := range whoisResponse.CountryCodes {
-				result = checkBlacklist(settings, isoCode)
-				// Any of the country being blacklisted is enough
-				if result == Reject {
-					return result
-				}
-			}
 		}
 	}
-	return result
+	return countries
 }
 
-// Check if an ISO country code is in the blacklist.
-func checkBlacklist(settings Settings, isoCode string) string {
+// Check if any ISO country codes is blacklisted.
+func checkBlacklist(settings Settings, isoCodes ...string) string {
 	log := settings.Syslog
-	if len(isoCode) > 0 {
-		blacklist := settings.BlackList
-		log.Debug(
-			fmt.Sprintf("checking ISO country code %s against blacklist %q", isoCode, blacklist),
-		)
-		isoCode = strings.ToUpper(isoCode) // The blacklist elements are all Uppercase (see config parsing code)
-		for _, blacklistedIsoCode := range settings.BlackList {
-			if isoCode == blacklistedIsoCode {
-				log.Debug(fmt.Sprintf("ISO country code %s is blacklisted", isoCode))
-				return Reject
+	for _, isoCode := range isoCodes {
+		if len(isoCode) > 0 {
+			blacklist := settings.BlackList
+			log.Debug(
+				fmt.Sprintf("checking ISO country code %s against blacklist %q", isoCode, blacklist),
+			)
+			isoCode = strings.ToUpper(isoCode) // The blacklist elements are all Uppercase (see config parsing code)
+			for _, blacklistedIsoCode := range settings.BlackList {
+				if isoCode == blacklistedIsoCode {
+					log.Debug(fmt.Sprintf("ISO country code %s is blacklisted", isoCode))
+					return Reject
+				}
 			}
+			log.Debug(fmt.Sprintf("ISO country code %s is not blacklisted", isoCode))
 		}
-		log.Debug(fmt.Sprintf("ISO country code %s is not blacklisted", isoCode))
-	} else {
-		log.Notice("no ISO country code passed to function")
 	}
 	return Dunno
 }
