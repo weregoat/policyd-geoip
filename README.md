@@ -1,5 +1,7 @@
 # policyd-geoip
-Small GoLang program to use MaxMind's GeoIP2 database (and now, optionally, Whois lookups) for [Postfix policy delegation](http://www.postfix.org/SMTPD_POLICY_README.html)
+Small GoLang program to use MaxMind's GeoIP2 database (and, optionally, Whois lookups and top domain guessing) for [Postfix policy delegation](http://www.postfix.org/SMTPD_POLICY_README.html).
+
+Whois processing is time consuming, on my systems it adds about two seconds to the processing.
 
 ## How to use
 
@@ -22,46 +24,31 @@ smtpd_..._restrictions =
 policy-geoip_time_limit = 3600
 ```
 
+If you want to be able to also process the sender address you need to use the policy in a later step of the Postfix process, after the client has sent the `MAIL FROM` command, for example `smtpd_sender_restrictions`.
+
 ## YAML configuration example
 ```
-# Debug log to syslog
-debug: true
-# ISO 3166-1 alpha2 codes for country to blacklist
+# Additional text to add to the REJECT message
+reject_message: "Not interested"
+# Should the program print debug information
+debug: false
+# ISO codes of countries not allowed to access the Postfix server
 blacklist:
-  - A1 # Maxmind own code for anonymous proxies
-  - A2 # Maxmind own code for satellite providers
-  - O1 # Maxmind own code for other countries
-#  - SE # Sweden
-   #  Etc. Etc.
-# Whitelisted clients (matched at the end)
+  - SE # Sweden
+  - US # USA
+# Special codes used by Maxmind:
+  - A1 # Anonymous Proxy
+  - A2 # Satellite Provider
+  - O1 # Other Country
+# Location of the Maxmind's Geoip2 database
+geoip2_database: "/usr/share/GeoIP/GeoLite2-Country.mmdb"
+# Domain that allows the client to skip the country check
 whitelist:
   - google.com
-# Full path to the GeoIP2 database to use
-geoip2_database: /usr/share/GeoIP/GeoLite2-Country.mmdb
-# Refresh the configuration if the previous policy request
-# was older than this interval
-refresh_interval: 10m
-
-# Syslog options
-# Be aware that if any of the following options is rejected, the default ones 
-# (mail, policyd-geoip) will be used instead. 
-# That includes the error/warning messages and errors that block the parsing of
-# the configuation.
-
-# Name of the syslog facility
-# Only mail,auth,authpriv,user,daemon,local0 ... local7 will be accepted
+# All logs are sent to Syslog (the program is not supposed to be run in console)
 syslog_facility: mail
-# Syslog tag 
-syslog_tag: policyd-geoip
-
-# Whois lookups
-# Optional, it will be used only in case the GeoIP results in a pass and one
-# of the server or program field is not empty.
-whois:
-  # Specify the initial server to use for Whois lookups
-  server: whois.iana.org
-  # Specify the path to the program to use to query for whois entry
-  program: /usr/local/bin
-  # If both are set, the program will take precedence  and the server will only be used 
-  # in case of no results from the program as a fallback.
+syslog_tag: policyd-geoip2
+# Optionally can use data from Whois to guess the country
+# Omit to just use geoip2 database.
+whois_program: /usr/bin/whois
 ```
