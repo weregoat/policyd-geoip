@@ -47,8 +47,8 @@ func main() {
 		settings.Syslog.Debug(setting)
 	}
 	defer settings.Syslog.Info("Program ended")
-	client := newClient()
 
+	client := Client{}
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		response := Dunno
@@ -56,11 +56,11 @@ func main() {
 		line := scanner.Text()
 		settings.Syslog.Debug(fmt.Sprintf("Read line '%s' from stdin", line))
 		if strings.Contains(line, "=") {
-			parseLine(&client, line, settings.Syslog)
+			client.parseLine(line)
 		}
 		// End of input
 		if line == "" {
-			if isWhitelisted(settings, client) {
+			if isWhitelisted(client.Name, settings.WhiteList) {
 				// Dunno and not OK because, I think, it should only be
 				// a way to bypass **this** check. I may change my mind
 				// later though.
@@ -103,7 +103,9 @@ func main() {
 			processDuration := time.Since(begin)
 			settings.Syslog.Debug(fmt.Sprintf("Processed in %s", processDuration.String()))
 			print(action)
-			client = newClient()
+			client.IP = nil
+			client.Name = ""
+			client.SenderDomain = ""
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -114,7 +116,7 @@ func main() {
 
 }
 
-// read the configuration
+// readConfig loads and parse the configuration file
 func readConfig(path string) (Settings, error) {
 	var settings Settings
 	config, err := loadConfiguration(path)
@@ -126,7 +128,7 @@ func readConfig(path string) (Settings, error) {
 	return settings, err
 }
 
-// Print the result as action. Notice action should be followed by an empty
+// print outputs the result as action. Notice action should be followed by an empty
 // line.
 func print(action string) {
 	writer := bufio.NewWriter(os.Stdout)
@@ -134,152 +136,143 @@ func print(action string) {
 	writer.Flush()
 }
 
-// Wraps the various checks for the client.
+// checkClient wraps the various checks for the client.
 func checkClient(settings Settings, client Client) string {
-	checkGeoIP2(settings, &client) // Check the IP address using Geoip2
-	checkTopLevelDomain(settings, &client)
-	checkWhois(settings, &client) // Try to guess country through Whois
-	if len(client.Status) == 0 {
-		// If we could not evaluate the client in any way
-		client.Status = Defer
+	ch := make(chan string)
+	count := 0
+	if client.IP != nil {
+		go checkGeoIP2(settings, client.IP, ch) // Check the IP address using GeoIP2
+		count++
+		go checkWhois(settings, client.IP.String(), ch)
 	}
-	return client.Status
-}
-
-// Check the client against the GeoIP2 database.
-func checkGeoIP2(settings Settings, client *Client) {
-	if client.Status != Reject {
-		if client.IP != nil {
-			isoCode := geoIP2Lookup(settings, client.IP)
-			if len(isoCode) == 2 {
-				client.Status = checkBlacklist(settings, isoCode)
-			}
-		}
-	}
-}
-
-// Check the client name and IP through the whois program.
-func checkWhois(settings Settings, client *Client) {
-	if client.Status != Reject {
-		if settings.WhoisClient != nil {
-			log := settings.Syslog
-			log.Debug(
-				fmt.Sprintf(
-					"Guessing country for client %s through %s",
-					client.String(),
-					settings.Configuration.WhoisProgram,
-				),
-			)
-			if client.IP != nil {
-				countries := queryResource(settings, client.IP.String())
-				if checkBlacklist(settings, countries...) == Reject {
-					client.Status = Reject
-					return
-				}
-			}
-			var names []string
-			if len(client.Name) > 0 {
-				names = add(names, client.Name)
-			}
-			if len(client.Sender) > 0 {
-				_, senderDomain := split(client.Sender, "@")
-				names = add(names, senderDomain)
-			}
-			for _, name := range names {
-				settings.Syslog.Debug(fmt.Sprintf("Checking whois records for domain name: %s", name))
-				parts := strings.Split(name, ".")
-				if len(parts) >= 2 {
-					domain := parts[len(parts)-1]          // We pick the last domain part
-					for i := len(parts) - 2; i >= 0; i-- { // We pick each part after that from the end
-						domain = parts[i] + "." + domain // and we build a possible domain
-						countries := queryResource(settings, domain)
-						if len(countries) > 0 {
-							if checkBlacklist(settings, countries...) == Reject {
-								client.Status = Reject
-								return
-							}
-							// Ideally there is only one valid domain we should
-							// use. So if we got any country from any of the
-							// guess, there is no need to try other combinations.
-							break
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
-// Check if the client name is whitelisted.
-func isWhitelisted(settings Settings, client Client) bool {
-	names := make(map[string]string)
 	if len(client.Name) > 0 {
-		names["Client name"] = strings.ToLower(strings.TrimSpace(client.Name))
+		go checkTopLevelDomain(settings, client.Name, ch)
+		count++
+		go checkWhois(settings, client.Name, ch)
+		count++
 	}
-	if len(client.Sender) > 0 {
-		_, senderDomain := split(client.Sender, "@")
-		names["Sender domain"] = strings.ToLower(strings.TrimSpace(senderDomain))
+	if len(client.SenderDomain) > 0 {
+		go checkTopLevelDomain(settings, client.Name, ch)
+		count++
+		go checkWhois(settings, client.Name, ch)
+		count++
 	}
-	for key, name := range names {
-		for _, allowed := range settings.WhiteList {
-			match := strings.HasSuffix(name, allowed)
-			if match == true {
-				settings.Syslog.Info(
-					fmt.Sprintf(
-						"%s %s is whitelisted",
-						key, name,
-					),
-				)
-				return true
+	timeout := time.After(30 * time.Second)
+	for i := 0; i < count; i++ {
+		select {
+		case response := <-ch:
+			if response != Dunno {
+				return response
 			}
+		case <-timeout:
+			return Dunno
+		}
+	}
+	return Dunno
+}
+
+// checkGeoIP2 check the the client's IP address against the GeoIP2 database.
+func checkGeoIP2(settings Settings, ip net.IP, ch chan string) {
+	if ip != nil {
+		isoCode := geoIP2Lookup(settings, ip)
+		if len(isoCode) == 2 {
+			ch <- checkBlacklist(settings, isoCode)
+			return
+		}
+	}
+	ch <- Dunno
+}
+
+// checkWhois tries to check the client's country through a whois query for the
+// client's name or IP address.
+func checkWhois(settings Settings, target string, ch chan string) {
+	if len(target) == 0 {
+		ch <- Dunno
+		return
+	}
+	log := settings.Syslog
+	log.Debug(
+		fmt.Sprintf(
+			"Guessing country for %s through %s",
+			target,
+			settings.Configuration.WhoisProgram,
+		),
+	)
+	var countries []string
+	ip := net.ParseIP(target)
+	// If it's an IP address
+	if ip != nil {
+		countries = queryResource(settings, target)
+	} else {
+		settings.Syslog.Debug(fmt.Sprintf("Checking whois records for domain name: %s", target))
+		parts := strings.Split(target, ".")
+		if len(parts) >= 2 {
+			domain := parts[len(parts)-1]          // We pick the last domain part
+			for i := len(parts) - 2; i >= 0; i-- { // We pick each part after that from the end
+				domain = parts[i] + "." + domain // and we build a possible domain
+				countries = queryResource(settings, domain)
+				// Ideally there is only one valid domain we should
+				// use. So if we got any country from any of the
+				// guesses, there is no need to try other combinations.
+				if len(countries) > 0 {
+					break
+				}
+			}
+		}
+	}
+	ch <- checkBlacklist(settings, countries...)
+	return
+}
+
+
+
+// isWhitelisted compares a fqdn to a list of whitelisted suffixes.
+func isWhitelisted(fqdn string, whitelist []string) bool {
+	target := strings.ToLower(strings.TrimSpace(fqdn))
+	if len(target) == 0 {
+		return false
+	}
+	for _, allowed := range whitelist {
+		match := strings.HasSuffix(target, allowed)
+		if match == true {
+			return true
 		}
 	}
 	return false
 }
 
-// Check if the client name or the sender address' top-level domain can be
-// used to guess a country.
-func checkTopLevelDomain(settings Settings, client *Client) {
-	if client.Status != Reject {
-		var names []string
-		if len(client.Name) > 2 {
-			names = add(names, client.Name)
-		}
-		if len(client.Sender) > 0 {
-			_, domainAddress := split(client.Sender, "@")
-			names = add(names, domainAddress)
-		}
-		if len(names) > 0 {
+// checkTopLevelDomain checks if the client name or the sender address'
+// top-level domain can be read as a country code.
+func checkTopLevelDomain(settings Settings, target string, ch chan string) {
+	if len(target) <= 2 {
+		ch <- Dunno
+		return
+	}
+	settings.Syslog.Debug(
+		fmt.Sprintf(
+			"Guessing country of top-level domain in %q",
+			target,
+		),
+	)
+	last := strings.LastIndex(target, ".")
+	if last > 0 {
+		top := strings.Trim(target[last:], ".")
+		if len(top) == 2 {
+			top = strings.ToUpper(top)
 			settings.Syslog.Debug(
 				fmt.Sprintf(
-					"Guessing country of top-level domains %q",
-					names,
+					"Checking if top-level domain %s is the isoCode of a blacklisted country",
+					top,
 				),
 			)
-			for _, name := range names {
-				last := strings.LastIndex(name, ".")
-				if last > 0 {
-					top := strings.Trim(name[last:], ".")
-					if len(top) == 2 {
-						top = strings.ToUpper(top)
-						settings.Syslog.Debug(
-							fmt.Sprintf(
-								"Checking if top-level domain %s is the isoCode of a blacklisted country",
-								top,
-							),
-						)
-						if checkBlacklist(settings, top) == Reject {
-							client.Status = Reject
-							return
-						}
-					}
-				}
-			}
+			ch <- checkBlacklist(settings, top)
+			return
 		}
 	}
+	ch <- Dunno
 }
 
-// Query the whois record of a specific resource.
+// queryResource queries the whois record of a specific resource.
 func queryResource(settings Settings, resource string) []string {
 	var countries []string
 	if settings.WhoisClient != nil && len(resource) > 0 {
@@ -305,7 +298,8 @@ func queryResource(settings Settings, resource string) []string {
 	return countries
 }
 
-// Check if any ISO country codes is blacklisted.
+// checkBlacklist checks if any ISO country codes is blacklisted and, in case,
+// returns a REJECT string.
 func checkBlacklist(settings Settings, isoCodes ...string) string {
 	log := settings.Syslog
 	for _, isoCode := range isoCodes {
@@ -327,7 +321,7 @@ func checkBlacklist(settings Settings, isoCodes ...string) string {
 	return Dunno
 }
 
-// geoIP2Lookup
+// geoIP2Lookup looks up an IP address in a GeoIP2 database.
 func geoIP2Lookup(settings Settings, ip net.IP) string {
 	var isoCode string
 	log := settings.Syslog
@@ -370,37 +364,7 @@ func geoIP2Lookup(settings Settings, ip net.IP) string {
 	return isoCode
 }
 
-// Parses the line with the attributes from Postfix.
-func parseLine(client *Client, line string, log Syslog) {
-	key, value := split(line, "=")
-	if len(value) > 0 {
-		switch key {
-		case "client_address":
-			client.IP = net.ParseIP(value)
-		case "client_name", "reverse_client_name":
-			if strings.ToLower(value) != "unknown" &&
-				len(client.Name) == 0 {
-				client.Name = value
-			}
-		case "sender":
-			client.Sender = value
-		}
-	}
-}
-
-func add(original []string, element string) []string {
-	if len(element) > 0 {
-		e := strings.ToLower(element)
-		for _, o := range original {
-			if e == strings.ToLower(o) {
-				return original
-			}
-		}
-		original = append(original, element)
-	}
-	return original
-}
-
+// split a very simple wrapper to split a string in two.
 func split(line string, separator string) (key string, value string) {
 	parts := strings.SplitN(line, separator, 2)
 	// I am only interested in lines containing the separator
