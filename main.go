@@ -281,7 +281,8 @@ func queryResource(settings Settings, resource string) []string {
 		if !whoisResponse.IsValid() {
 			log.Debug(
 				fmt.Sprintf(
-					"No result querying whois for resource %s", resource,
+					"No result querying whois for resource %s: %s",
+					resource, whoisResponse.Error.Error(),
 				),
 			)
 		} else {
