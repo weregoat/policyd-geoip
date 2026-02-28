@@ -8,6 +8,7 @@ import (
 	"log/syslog"
 	"net"
 	"os"
+	"slices"
 	"strings"
 	"time"
 )
@@ -224,8 +225,6 @@ func checkWhois(settings Settings, target string, ch chan string) {
 	return
 }
 
-
-
 // isWhitelisted compares a fqdn to a list of whitelisted suffixes.
 func isWhitelisted(fqdn string, whitelist []string) bool {
 	target := strings.ToLower(strings.TrimSpace(fqdn))
@@ -310,11 +309,9 @@ func checkBlacklist(settings Settings, isoCodes ...string) string {
 				fmt.Sprintf("checking ISO country code %s against blacklist %q", isoCode, blacklist),
 			)
 			isoCode = strings.ToUpper(isoCode) // The blacklist elements are all Uppercase (see config parsing code)
-			for _, blacklistedIsoCode := range settings.BlackList {
-				if isoCode == blacklistedIsoCode {
-					log.Debug(fmt.Sprintf("ISO country code %s is blacklisted", isoCode))
-					return Reject
-				}
+			if slices.Contains(settings.BlackList, isoCode) {
+				log.Debug(fmt.Sprintf("ISO country code %s is blacklisted", isoCode))
+				return Reject
 			}
 			log.Debug(fmt.Sprintf("ISO country code %s is not blacklisted", isoCode))
 		}

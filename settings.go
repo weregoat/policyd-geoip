@@ -6,7 +6,8 @@ import (
 	"github.com/weregoat/goat-whois/pkg/whois"
 	"github.com/weregoat/goat-whois/pkg/whois/sources/program"
 	"gopkg.in/yaml.v2"
-	"io/ioutil"
+	"os"
+
 	"path/filepath"
 	"strings"
 )
@@ -45,7 +46,7 @@ func loadConfiguration(path string) (Configuration, error) {
 		return config, err
 	}
 	config.Path = filename
-	yamlFile, err := ioutil.ReadFile(filename)
+	yamlFile, err := os.ReadFile(filename)
 	if err != nil {
 		return config, err
 	}
